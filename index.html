@@ -106,31 +106,18 @@
         document.getElementById('hud-hi-score').innerText = Math.floor(highScore);
 
         // ==========================================
-        // 1. PROCEDURAL AUDIO (WEB AUDIO API)
+        // 1. PROCEDURAL AUDIO (FIXED BROWSER AUTOPLAY)
         // ==========================================
         const AudioContext = window.AudioContext || window.webkitAudioContext;
         let audioCtx;
-        let engineOsc, engineGain, engineFilter;
 
         function initAudio() {
             if (!audioCtx) {
                 audioCtx = new AudioContext();
-                
-                // Engine Sound Setup
-                engineOsc = audioCtx.createOscillator();
-                engineOsc.type = 'sawtooth';
-                engineFilter = audioCtx.createBiquadFilter();
-                engineFilter.type = 'lowpass';
-                engineGain = audioCtx.createGain();
-                
-                engineOsc.connect(engineFilter);
-                engineFilter.connect(engineGain);
-                engineGain.connect(audioCtx.destination);
-                
-                engineGain.gain.value = 0; // Mute initially
-                engineOsc.start();
             }
-            if (audioCtx.state === 'suspended') audioCtx.resume();
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
         }
 
         function playSound(type) {
@@ -141,10 +128,10 @@
             osc.connect(gain); gain.connect(audioCtx.destination);
 
             if (type === 'jump') {
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(200, t);
-                osc.frequency.exponentialRampToValueAtTime(600, t + 0.3);
-                gain.gain.setValueAtTime(0.3, t);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(300, t);
+                osc.frequency.exponentialRampToValueAtTime(800, t + 0.3);
+                gain.gain.setValueAtTime(0.4, t);
                 gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
                 osc.start(t); osc.stop(t + 0.3);
             } 
@@ -157,7 +144,6 @@
                 osc.start(t); osc.stop(t + 0.3);
             }
             else if (type === 'crash') {
-                // Pseudo-noise using fast LFO
                 osc.type = 'sawtooth';
                 osc.frequency.setValueAtTime(100, t);
                 osc.frequency.exponentialRampToValueAtTime(10, t + 0.5);
@@ -165,16 +151,23 @@
                 gain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
                 osc.start(t); osc.stop(t + 0.5);
                 
-                // Roar overlap
                 const roar = audioCtx.createOscillator();
                 const roarGain = audioCtx.createGain();
                 roar.type = 'sawtooth';
-                roar.frequency.setValueAtTime(80, t);
-                roar.frequency.linearRampToValueAtTime(30, t + 0.8);
+                roar.frequency.setValueAtTime(90, t);
+                roar.frequency.linearRampToValueAtTime(40, t + 0.8);
                 roar.connect(roarGain); roarGain.connect(audioCtx.destination);
                 roarGain.gain.setValueAtTime(0.6, t);
                 roarGain.gain.linearRampToValueAtTime(0.01, t + 0.8);
                 roar.start(t); roar.stop(t + 0.8);
+            }
+            else if (type === 'step') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(100, t);
+                osc.frequency.exponentialRampToValueAtTime(50, t + 0.1);
+                gain.gain.setValueAtTime(0.1, t);
+                gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+                osc.start(t); osc.stop(t + 0.1);
             }
         }
 
@@ -182,8 +175,8 @@
         // 2. SCENE, CAMERA & LIGHTING (BRIGHT DAYTIME)
         // ==========================================
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x7ec8e3); // Bright sky blue
-        scene.fog = new THREE.Fog(0x7ec8e3, 40, 160); 
+        scene.background = new THREE.Color(0x87CEEB); 
+        scene.fog = new THREE.Fog(0x87CEEB, 30, 150); // Linear bright fog
 
         const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 300);
         let baseCameraPos = new THREE.Vector3(0, 5, 12);
@@ -196,18 +189,18 @@
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.2;
+        renderer.toneMappingExposure = 1.5; // Brightness
         document.getElementById('canvas-container').appendChild(renderer.domElement);
 
         const composer = new EffectComposer(renderer);
         composer.addPass(new RenderPass(scene, camera));
         composer.addPass(new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.6, 0.4, 0.85));
 
-        const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
         scene.add(ambientLight);
-        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x44aa44, 0.8);
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x4ade80, 0.8);
         scene.add(hemiLight);
-        const dirLight = new THREE.DirectionalLight(0xffffff, 2.0);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 2.5);
         dirLight.position.set(30, 50, -20);
         dirLight.castShadow = true;
         dirLight.shadow.mapSize.width = 2048; dirLight.shadow.mapSize.height = 2048;
@@ -215,10 +208,10 @@
         const d = 40; dirLight.shadow.camera.left = -d; dirLight.shadow.camera.right = d; dirLight.shadow.camera.top = d; dirLight.shadow.camera.bottom = -d;
         scene.add(dirLight);
 
-        // Ground
+        // Ground (Mossy Green)
         const ground = new THREE.Mesh(
             new THREE.PlaneGeometry(200, 500, 20, 20),
-            new THREE.MeshStandardMaterial({ color: 0x4ade80, roughness: 1.0 })
+            new THREE.MeshStandardMaterial({ color: 0x3cb371, roughness: 1.0 })
         );
         ground.rotation.x = -Math.PI / 2;
         ground.receiveShadow = true;
@@ -227,16 +220,15 @@
         // ==========================================
         // 3. MODELS & PARTICLES
         // ==========================================
-        // Particles Setup
         let particles = [];
         const dustGeo = new THREE.BoxGeometry(0.4, 0.4, 0.4);
-        const dustMat = new THREE.MeshBasicMaterial({ color: 0xcccccc, transparent: true, opacity: 0.6 });
+        const dustMat = new THREE.MeshBasicMaterial({ color: 0xdddddd, transparent: true, opacity: 0.6 });
         const burstMat = new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true });
 
         function spawnDust(x, z) {
-            if(Math.random() > 0.4 || isJumping) return;
+            if(Math.random() > 0.3 || isJumping) return;
             const p = new THREE.Mesh(dustGeo, dustMat);
-            p.position.set(x + (Math.random()-0.5), 0.2, z);
+            p.position.set(x + (Math.random()-0.5)*0.5, 0.2, z);
             p.userData = { life: 1.0, decay: 0.05, vx: (Math.random()-0.5)*0.1, vy: Math.random()*0.1, vz: gameSpeed };
             scene.add(p); particles.push(p);
         }
@@ -245,89 +237,116 @@
             for(let i=0; i<15; i++) {
                 const p = new THREE.Mesh(new THREE.TetrahedronGeometry(0.2), burstMat);
                 p.position.copy(pos);
-                p.userData = { 
-                    life: 1.0, decay: 0.08, 
-                    vx: (Math.random()-0.5)*0.5, vy: (Math.random()-0.5)*0.5, vz: (Math.random()-0.5)*0.5 + gameSpeed 
-                };
+                p.userData = { life: 1.0, decay: 0.08, vx: (Math.random()-0.5)*0.5, vy: (Math.random()-0.5)*0.5, vz: (Math.random()-0.5)*0.5 + gameSpeed };
                 scene.add(p); particles.push(p);
             }
         }
 
-        // PLAYER: SUV with Caveman
+        // PLAYER: CAVEMAN
         const playerGroup = new THREE.Group();
         scene.add(playerGroup);
 
-        const suvBodyGroup = new THREE.Group();
-        const suvWheels = [];
-        const suvMat = new THREE.MeshPhysicalMaterial({ color: 0x1e40af, metalness: 0.6, roughness: 0.2, clearcoat: 1.0 });
-        
-        const carBody = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.0, 4.2), suvMat);
-        carBody.position.y = 1.0; carBody.castShadow = true; suvBodyGroup.add(carBody);
-        
-        const carTop = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.8, 2.2), new THREE.MeshStandardMaterial({color: 0x111111}));
-        carTop.position.set(0, 1.9, -0.2); carTop.castShadow = true; suvBodyGroup.add(carTop);
+        const cavemanMat = new THREE.MeshStandardMaterial({color: 0xfcb085, roughness: 0.5}); // Skin
+        const clothMat = new THREE.MeshStandardMaterial({color: 0x8b4513, roughness: 0.9}); // Cloth
 
-        // Caveman on roof
-        const caveman = new THREE.Group();
-        const head = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 16), new THREE.MeshStandardMaterial({color: 0xfcb085}));
-        head.position.y = 0.7; head.castShadow = true;
-        const body = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 0.6), new THREE.MeshStandardMaterial({color: 0x8b4513}));
-        body.position.y = 0.2; body.castShadow = true;
-        caveman.add(head, body);
-        caveman.position.set(0, 2.3, -0.2); // Stick out of sunroof
-        suvBodyGroup.add(caveman);
+        // Torso
+        const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.35, 0.7, 16), clothMat);
+        torso.position.y = 1.2;
+        torso.castShadow = true;
+        playerGroup.add(torso);
 
-        const wheelGeo = new THREE.CylinderGeometry(0.6, 0.6, 0.4, 24); wheelGeo.rotateZ(Math.PI/2);
-        const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
-        const wPos = [[-1.2, 0.6, 1.3], [1.2, 0.6, 1.3], [-1.2, 0.6, -1.3], [1.2, 0.6, -1.3]];
-        wPos.forEach(pos => {
-            const w = new THREE.Mesh(wheelGeo, wheelMat);
-            w.position.set(...pos); w.castShadow = true;
-            suvBodyGroup.add(w); suvWheels.push(w);
-        });
-        playerGroup.add(suvBodyGroup);
+        // Head
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 16), cavemanMat);
+        head.position.y = 0.6;
+        head.castShadow = true;
+        torso.add(head);
 
-        // T-REX (Watercolor Green, Spikes, Open Mouth)
+        // Limbs function for pivots
+        function createLimb(mat, w, h, d, yOffset) {
+            const pivot = new THREE.Group();
+            const mesh = new THREE.Mesh(new THREE.CylinderGeometry(w, w*0.8, h, 16), mat);
+            mesh.position.y = yOffset;
+            mesh.castShadow = true;
+            pivot.add(mesh);
+            return pivot;
+        }
+
+        const armL = createLimb(cavemanMat, 0.12, 0.6, 0.12, -0.3); armL.position.set(-0.45, 1.4, 0); playerGroup.add(armL);
+        const armR = createLimb(cavemanMat, 0.12, 0.6, 0.12, -0.3); armR.position.set(0.45, 1.4, 0); playerGroup.add(armR);
+        const legL = createLimb(cavemanMat, 0.15, 0.7, 0.15, -0.35); legL.position.set(-0.2, 0.8, 0); playerGroup.add(legL);
+        const legR = createLimb(cavemanMat, 0.15, 0.7, 0.15, -0.35); legR.position.set(0.2, 0.8, 0); playerGroup.add(legR);
+
+        // ENEMY: REALISTIC T-REX
         const tRexGroup = new THREE.Group();
         tRexGroup.position.set(0, 0, 15);
         scene.add(tRexGroup);
 
-        const tMat = new THREE.MeshPhysicalMaterial({ color: 0x3d8c7c, roughness: 0.7 }); // Watercolor green
-        const tBellyMat = new THREE.MeshStandardMaterial({ color: 0xf2e8c9 }); // Cream
+        const trexMat = new THREE.MeshStandardMaterial({ color: 0x3d8c7c, roughness: 0.6 }); // Teal/Green
+        const trexBellyMat = new THREE.MeshStandardMaterial({ color: 0xf2e8c9, roughness: 0.7 }); // Cream belly
 
-        const tBody = new THREE.Mesh(new THREE.BoxGeometry(2.2, 3.0, 3.5), tMat);
-        tBody.position.y = 3.5; tBody.castShadow = true; tRexGroup.add(tBody);
-        
-        const tBelly = new THREE.Mesh(new THREE.BoxGeometry(2.1, 2.9, 3.4), tBellyMat);
-        tBelly.position.set(0, -0.1, 0.1); tBody.add(tBelly);
+        // Body
+        const bodyGeo = new THREE.SphereGeometry(1.6, 32, 32); bodyGeo.scale(1, 1, 1.8);
+        const tBody = new THREE.Mesh(bodyGeo, trexMat);
+        tBody.position.y = 4.0; tBody.castShadow = true; tRexGroup.add(tBody);
 
+        const bellyGeo = new THREE.SphereGeometry(1.5, 32, 32); bellyGeo.scale(1, 0.9, 1.7);
+        const tBelly = new THREE.Mesh(bellyGeo, trexBellyMat);
+        tBelly.position.set(0, -0.2, 0.1); tBody.add(tBelly);
+
+        // Tail
+        const tailGeo = new THREE.ConeGeometry(0.8, 3.5, 32); tailGeo.rotateX(Math.PI/2);
+        const tTail = new THREE.Mesh(tailGeo, trexMat);
+        tTail.position.set(0, 4.2, 2.5); tTail.castShadow = true; tRexGroup.add(tTail);
+
+        // Head Group
         const tHeadGroup = new THREE.Group();
         tHeadGroup.position.set(0, 4.8, -2.2);
-        
-        // Upper jaw
-        const tHead = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.2, 2.2), tMat);
-        tHead.castShadow = true; tHeadGroup.add(tHead);
-        // Eyes
-        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.15), new THREE.MeshBasicMaterial({color: 0xffaa00}));
-        eye.position.set(0.85, 0.2, -0.5); tHeadGroup.add(eye);
-        const eye2 = eye.clone(); eye2.position.set(-0.85, 0.2, -0.5); tHeadGroup.add(eye2);
-        
-        // Lower jaw (open)
-        const tJaw = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.5, 2.0), tBellyMat);
-        tJaw.position.set(0, -1.0, 0); tJaw.rotation.x = 0.5; tJaw.castShadow = true; tHeadGroup.add(tJaw);
-        
         tRexGroup.add(tHeadGroup);
 
-        // Spikes on back
-        for(let i=0; i<4; i++) {
-            const spike = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.8, 4), tMat);
-            spike.position.set(0, 5.2 - i*0.4, 0.5 + i*0.6);
+        const skullGeo = new THREE.SphereGeometry(1.0, 32, 32); skullGeo.scale(1, 0.8, 1.4);
+        const tSkull = new THREE.Mesh(skullGeo, trexMat);
+        tSkull.castShadow = true; tHeadGroup.add(tSkull);
+
+        // Jaw and Teeth
+        const jawGeo = new THREE.SphereGeometry(0.9, 32, 32); jawGeo.scale(1, 0.4, 1.3);
+        const tJaw = new THREE.Mesh(jawGeo, trexBellyMat);
+        tJaw.position.set(0, -0.6, 0.1);
+        tJaw.rotation.x = 0.5; // Open mouth
+        tJaw.castShadow = true; tHeadGroup.add(tJaw);
+
+        const toothGeo = new THREE.ConeGeometry(0.08, 0.3, 8);
+        const toothMat = new THREE.MeshStandardMaterial({color: 0xffffff});
+        for(let i=0; i<6; i++) {
+            const toothUpper = new THREE.Mesh(toothGeo, toothMat);
+            toothUpper.position.set(-0.7 + i*0.28, -0.6, -0.8 + Math.abs(i-2.5)*0.1);
+            tHeadGroup.add(toothUpper);
+            const toothLower = new THREE.Mesh(toothGeo, toothMat);
+            toothLower.position.set(-0.7 + i*0.28, -0.3, -0.8 + Math.abs(i-2.5)*0.1);
+            toothLower.rotation.x = Math.PI;
+            tJaw.add(toothLower);
+        }
+
+        // Eyes
+        const eyeMat = new THREE.MeshBasicMaterial({color: 0xffaa00});
+        const eyeR = new THREE.Mesh(new THREE.SphereGeometry(0.15), eyeMat); eyeR.position.set(0.9, 0.3, -0.5); tHeadGroup.add(eyeR);
+        const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.15), eyeMat); eyeL.position.set(-0.9, 0.3, -0.5); tHeadGroup.add(eyeL);
+
+        // Legs (Muscular)
+        const thighGeo = new THREE.SphereGeometry(1.0, 32, 32); thighGeo.scale(0.8, 1.5, 1.0);
+        const tThighL = new THREE.Mesh(thighGeo, trexMat); tThighL.position.set(-1.6, 2.5, 0.5); tRexGroup.add(tThighL);
+        const tThighR = new THREE.Mesh(thighGeo, trexMat); tThighR.position.set(1.6, 2.5, 0.5); tRexGroup.add(tThighR);
+
+        const calfGeo = new THREE.CylinderGeometry(0.3, 0.2, 1.5, 16);
+        const tLegL = new THREE.Mesh(calfGeo, trexMat); tLegL.position.set(-1.6, 0.8, -0.2); tRexGroup.add(tLegL);
+        const tLegR = new THREE.Mesh(calfGeo, trexMat); tLegR.position.set(1.6, 0.8, -0.2); tRexGroup.add(tLegR);
+
+        // Spikes
+        for(let i=0; i<8; i++) {
+            const spike = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.6, 8), trexMat);
+            spike.position.set(0, 5.5 - i*0.2, -1.0 + i*0.6);
             spike.rotation.x = -0.5;
             tRexGroup.add(spike);
         }
-
-        const tLegL = new THREE.Mesh(new THREE.BoxGeometry(0.9, 2.8, 1.0), tMat); tLegL.position.set(-1.4, 1.4, 0); tRexGroup.add(tLegL);
-        const tLegR = new THREE.Mesh(new THREE.BoxGeometry(0.9, 2.8, 1.0), tMat); tLegR.position.set(1.4, 1.4, 0); tRexGroup.add(tLegR);
 
         // ==========================================
         // 4. GAME LOGIC & CONTROLS
@@ -336,9 +355,10 @@
         let score = 0, gems = 0, gameSpeed = 0.6;
         let currentLane = 0; const laneWidth = 4.0;
         let yVel = 0, isJumping = false;
-        const jumpForce = 0.8, gravity = -0.045;
+        const jumpForce = 0.9, gravity = -0.05;
         let obstacles = [], collectibles = [];
         let shakeIntensity = 0;
+        let stepTimer = 0;
 
         function spawnObstacle() {
             if (!isPlaying) return;
@@ -347,15 +367,15 @@
             const obs = new THREE.Group();
             
             if(isTree) {
-                const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.5, 2), new THREE.MeshStandardMaterial({color: 0x5c4033}));
+                const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.5, 2, 16), new THREE.MeshStandardMaterial({color: 0x5c4033}));
                 trunk.position.y = 1; trunk.castShadow = true; obs.add(trunk);
                 for(let j=0; j<3; j++) {
-                    const leaves = new THREE.Mesh(new THREE.ConeGeometry(2 - j*0.4, 2.5), new THREE.MeshStandardMaterial({color: 0x14532d}));
+                    const leaves = new THREE.Mesh(new THREE.ConeGeometry(2 - j*0.4, 2.5, 16), new THREE.MeshStandardMaterial({color: 0x14532d}));
                     leaves.position.y = 2.5 + j*1.2; leaves.castShadow = true; obs.add(leaves);
                 }
                 obs.userData = { hitR: 1.0, hitH: 5.0 };
             } else {
-                const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(1.5), new THREE.MeshStandardMaterial({color: 0x78716c, roughness: 1}));
+                const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(1.5), new THREE.MeshStandardMaterial({color: 0x556b2f, roughness: 1}));
                 rock.position.y = 0.8; rock.rotation.set(Math.random(), Math.random(), 0); rock.castShadow = true; obs.add(rock);
                 obs.userData = { hitR: 1.4, hitH: 1.8 };
             }
@@ -378,12 +398,11 @@
         }
 
         function resetGame() {
-            initAudio();
-            if(engineGain) engineGain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-
+            initAudio(); // Required for Safari/Chrome autoplay policy
+            
             score = 0; gems = 0; gameSpeed = 0.6; currentLane = 0;
             playerGroup.position.set(0,0,0); tRexGroup.position.set(0,0,15);
-            isJumping = false; yVel = 0; shakeIntensity = 0;
+            isJumping = false; yVel = 0; shakeIntensity = 0; playerGroup.rotation.x = 0;
             
             obstacles.forEach(o => scene.remove(o)); obstacles = [];
             collectibles.forEach(c => scene.remove(c)); collectibles = [];
@@ -403,10 +422,8 @@
         function die() {
             isPlaying = false; isGameOver = true;
             playSound('crash');
-            shakeIntensity = 0.8; // Trigger Camera Shake
-            if(engineGain) engineGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.0);
+            shakeIntensity = 0.8; 
 
-            // High Score Logic
             if(score > highScore) {
                 highScore = score;
                 localStorage.setItem('dinoHighScore', highScore);
@@ -423,7 +440,6 @@
             }, 1000);
         }
 
-        // Controls
         function moveLeft() { if(currentLane > -1 && isPlaying) currentLane--; }
         function moveRight() { if(currentLane < 1 && isPlaying) currentLane++; }
         function jump() { 
@@ -439,25 +455,16 @@
             if(e.code === 'Space' || e.code === 'KeyW' || e.code === 'ArrowUp') jump();
         });
 
-        // Touch / Swipe
         let touchStartX = 0, touchStartY = 0;
         window.addEventListener('touchstart', e => {
-            touchStartX = e.changedTouches[0].screenX;
-            touchStartY = e.changedTouches[0].screenY;
+            touchStartX = e.changedTouches[0].screenX; touchStartY = e.changedTouches[0].screenY;
         });
         window.addEventListener('touchend', e => {
-            let touchEndX = e.changedTouches[0].screenX;
-            let touchEndY = e.changedTouches[0].screenY;
-            let dx = touchEndX - touchStartX;
-            let dy = touchEndY - touchStartY;
-            
-            if(Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 30) {
-                if(dx > 0) moveRight(); else moveLeft();
-            } else if(Math.abs(dy) > 30 && dy < 0) {
-                jump(); // Swipe up
-            } else if(Math.abs(dx) < 10 && Math.abs(dy) < 10) {
-                jump(); // Tap
-            }
+            let dx = e.changedTouches[0].screenX - touchStartX;
+            let dy = e.changedTouches[0].screenY - touchStartY;
+            if(Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 30) { dx > 0 ? moveRight() : moveLeft(); } 
+            else if(Math.abs(dy) > 30 && dy < 0) jump();
+            else if(Math.abs(dx) < 10 && Math.abs(dy) < 10) jump();
         });
 
         document.getElementById('start-btn').onclick = resetGame;
@@ -470,56 +477,67 @@
             requestAnimationFrame(animate);
             const t = Date.now();
 
-            // Camera Shake Logic
             if(shakeIntensity > 0.01) {
                 camera.position.x = baseCameraPos.x + (Math.random()-0.5) * shakeIntensity;
                 camera.position.y = baseCameraPos.y + (Math.random()-0.5) * shakeIntensity;
                 camera.position.z = baseCameraPos.z + (Math.random()-0.5) * shakeIntensity;
-                shakeIntensity *= 0.9; // Decay
-            } else {
-                camera.position.copy(baseCameraPos);
-            }
+                shakeIntensity *= 0.9;
+            } else { camera.position.copy(baseCameraPos); }
 
             if(isPlaying) {
                 score += gameSpeed * 0.3;
                 document.getElementById('score-val').innerText = Math.floor(score);
                 if(gameSpeed < 2.0) gameSpeed += 0.0003;
 
-                // Engine Audio Update
-                if(engineFilter && engineOsc) {
-                    engineFilter.frequency.value = 200 + gameSpeed * 500;
-                    engineOsc.frequency.value = 50 + gameSpeed * 20;
-                }
+                // Snappy Lane Change
+                playerGroup.position.x += (currentLane * laneWidth - playerGroup.position.x) * 0.2;
 
-                // Smooth Lane Change
-                playerGroup.position.x += (currentLane * laneWidth - playerGroup.position.x) * 0.15;
-
+                // Caveman Animation
+                const runCycle = t * 0.015 * gameSpeed;
+                
                 if(isJumping) {
                     playerGroup.position.y += yVel;
                     yVel += gravity;
-                    suvBodyGroup.position.y = 0; // Reset suspension
+                    // Front Flip Animation
+                    playerGroup.rotation.x -= 0.15;
+                    armL.rotation.x = Math.PI; armR.rotation.x = Math.PI; // Arms up
+                    legL.rotation.x = -0.5; legR.rotation.x = -0.5; // Legs tucked
+                    
                     if(playerGroup.position.y <= 0) {
                         playerGroup.position.y = 0; isJumping = false; yVel = 0;
-                        shakeIntensity = 0.1; // Small landing shake
+                        playerGroup.rotation.x = 0; // Reset flip
+                        shakeIntensity = 0.1;
                     }
                 } else {
-                    suvWheels.forEach(w => w.rotation.x -= gameSpeed * 1.5);
-                    suvBodyGroup.position.y = Math.sin(t*0.04)*0.08; // Suspension bobbing
-                    spawnDust(playerGroup.position.x, playerGroup.position.z + 1); // Dust
-                }
+                    playerGroup.rotation.x = 0;
+                    // Running Arms & Legs (Math.sin)
+                    armL.rotation.x = Math.sin(runCycle) * 1.5;
+                    armR.rotation.x = Math.sin(runCycle + Math.PI) * 1.5;
+                    legL.rotation.x = Math.sin(runCycle + Math.PI) * 1.2;
+                    legR.rotation.x = Math.sin(runCycle) * 1.2;
+                    
+                    playerGroup.position.y = Math.abs(Math.sin(runCycle * 2)) * 0.2; // Body bobbing
+                    spawnDust(playerGroup.position.x, playerGroup.position.z + 0.5);
 
-                caveman.rotation.y = Math.sin(t*0.01)*0.2; // Caveman looks around
+                    // Footstep audio
+                    stepTimer += gameSpeed;
+                    if(stepTimer > 8) { playSound('step'); stepTimer = 0; }
+                }
 
                 // T-Rex Animation
                 tRexGroup.position.x += (playerGroup.position.x - tRexGroup.position.x) * 0.04;
-                tLegL.rotation.x = Math.sin(t*0.015) * 0.6;
-                tLegR.rotation.x = Math.sin(t*0.015 + Math.PI) * 0.6;
-                tRexGroup.position.y = Math.abs(Math.sin(t*0.015)) * 0.4; // T-Rex bounce
+                const trexRun = t * 0.012 * gameSpeed;
+                tLegL.rotation.x = Math.sin(trexRun) * 0.6;
+                tThighL.rotation.x = Math.sin(trexRun) * 0.4;
+                tLegR.rotation.x = Math.sin(trexRun + Math.PI) * 0.6;
+                tThighR.rotation.x = Math.sin(trexRun + Math.PI) * 0.4;
+                tRexGroup.position.y = Math.abs(Math.sin(trexRun * 2)) * 0.3; // Bounce
+                tHeadGroup.rotation.x = Math.sin(trexRun) * 0.1; // Head bob
 
                 // Objects Update
                 for(let i=obstacles.length-1; i>=0; i--) {
                     let o = obstacles[i]; o.position.z += gameSpeed;
-                    if(Math.abs(playerGroup.position.z - o.position.z) < 2.0 && 
+                    if(Math.abs(playerGroup.position.z - o.position.z) < 1.5 && 
                        Math.abs(playerGroup.position.x - o.position.x) < o.userData.hitR &&
                        playerGroup.position.y < o.userData.hitH) {
                         die();
@@ -530,31 +548,26 @@
                 for(let i=collectibles.length-1; i>=0; i--) {
                     let c = collectibles[i]; c.position.z += gameSpeed;
                     c.rotation.y += 0.05; c.rotation.x += 0.05;
-                    c.position.y = 1.8 + Math.sin(t*0.005)*0.3; // Hover
+                    c.position.y = 1.8 + Math.sin(t*0.005)*0.3;
                     
-                    if(Math.abs(playerGroup.position.z - c.position.z) < 2.5 && 
+                    if(Math.abs(playerGroup.position.z - c.position.z) < 2.0 && 
                        Math.abs(playerGroup.position.x - c.position.x) < 2.0 &&
                        Math.abs(playerGroup.position.y + 1.0 - c.position.y) < 2.5) {
-                        playSound('collect');
-                        spawnGemBurst(c.position);
+                        playSound('collect'); spawnGemBurst(c.position);
                         scene.remove(c); collectibles.splice(i,1);
                         score += 50; gems++; document.getElementById('gems-val').innerText = gems;
                     } else if(c.position.z > 25) { scene.remove(c); collectibles.splice(i,1); }
                 }
             } else if (isGameOver) {
-                // T-Rex eats car
                 if(tRexGroup.position.z > playerGroup.position.z + 1.5) {
                     tRexGroup.position.z -= 0.6;
                     tRexGroup.position.x += (playerGroup.position.x - tRexGroup.position.x) * 0.1;
                 }
             }
 
-            // Particles Update
             for(let i=particles.length-1; i>=0; i--) {
                 let p = particles[i];
-                p.position.x += p.userData.vx;
-                p.position.y += p.userData.vy;
-                p.position.z += p.userData.vz;
+                p.position.add(new THREE.Vector3(p.userData.vx, p.userData.vy, p.userData.vz));
                 p.userData.life -= p.userData.decay;
                 p.scale.setScalar(Math.max(0, p.userData.life));
                 p.material.opacity = p.userData.life;
