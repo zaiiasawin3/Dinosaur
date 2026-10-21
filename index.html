@@ -3,713 +3,526 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dino 3D Escape - Forest</title>
+    <title>Dino 3D Cinematic Forest</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <!-- Import Map for Modern Three.js & Post-Processing -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+
     <style>
         body {
             margin: 0;
             padding: 0;
             overflow: hidden;
-            background-color: #354a38; /* Forest mist color */
-            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1a2421;
+            font-family: 'Inter', sans-serif;
             touch-action: none;
             user-select: none;
         }
-        #game-canvas {
-            display: block;
-            width: 100vw;
-            height: 100vh;
-        }
+        #game-canvas { display: block; width: 100vw; height: 100vh; }
+        
+        /* Glassmorphism UI */
         .ui-layer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 10;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 10;
         }
-        /* Cinematic Glassmorphism UI */
         .glass-panel {
             pointer-events: auto;
-            background: rgba(10, 20, 15, 0.7);
-            padding: 3rem;
-            border-radius: 1.5rem;
-            box-shadow: 0 20px 50px rgba(0,0,0,0.6);
-            text-align: center;
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255,255,255,0.1);
-            color: #fff;
-            max-width: 90%;
-            width: 450px;
+            background: rgba(15, 25, 20, 0.6);
+            padding: 3rem; border-radius: 2rem;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.1);
+            backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255,255,255,0.05);
+            color: #fff; max-width: 90%; width: 480px; text-align: center;
         }
         #score-hud {
-            position: absolute;
-            top: 30px;
-            right: 30px;
-            background: rgba(0, 0, 0, 0.6);
-            color: #aaff00;
-            padding: 12px 24px;
-            border-radius: 12px;
-            font-size: 1.75rem;
-            font-weight: 800;
-            letter-spacing: 2px;
-            pointer-events: none;
-            display: none;
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(255,255,255,0.1);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            position: absolute; top: 40px; right: 40px;
+            background: rgba(0, 0, 0, 0.4); color: #cfff70;
+            padding: 15px 30px; border-radius: 16px;
+            font-size: 2rem; font-weight: 900; letter-spacing: 2px;
+            backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: none;
         }
         .btn-cinematic {
             background: linear-gradient(135deg, #2e7d32 0%, #1b5e20 100%);
-            transition: all 0.2s ease;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.4);
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            border: 1px solid rgba(255,255,255,0.2);
         }
         .btn-cinematic:hover {
             background: linear-gradient(135deg, #388e3c 0%, #2e7d32 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(46, 125, 50, 0.5);
-        }
-        .btn-cinematic:active {
-            transform: translateY(1px) scale(0.98);
+            transform: translateY(-3px); box-shadow: 0 15px 35px rgba(46, 125, 50, 0.6);
         }
         .vignette {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none;
-            box-shadow: 0 0 200px rgba(0,0,0,0.8) inset;
-            z-index: 5;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; box-shadow: 0 0 300px rgba(0,0,0,0.9) inset; z-index: 5;
         }
-        .btn-danger {
-            background: linear-gradient(135deg, #d32f2f 0%, #9a0007 100%);
-        }
-        .btn-danger:hover {
-            background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
-            box-shadow: 0 8px 25px rgba(211, 47, 47, 0.5);
+        .text-gradient {
+            background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         }
     </style>
 </head>
 <body>
     <div class="vignette"></div>
-    <!-- HUD -->
     <div id="score-hud">SCORE: <span id="score-val">0</span></div>
 
-    <!-- UI Screens -->
     <div class="ui-layer" id="ui-container">
-        <!-- Start Screen -->
+        <!-- Start Menu -->
         <div id="start-screen" class="glass-panel">
-            <h1 class="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-600 mb-2 tracking-wider">JUNGLE ESCAPE</h1>
-            <p class="text-gray-300 mb-6 text-lg font-light tracking-wide">Survive the primal forest.</p>
-            
-            <div class="text-sm text-gray-300 mb-8 space-y-3 bg-black bg-opacity-40 p-5 rounded-xl text-left border border-white border-opacity-10">
-                <div class="flex items-center"><span class="text-xl mr-3">💻</span> <b>PC:</b>&nbsp; A/D or Arrows to dodge. Space to jump.</div>
-                <div class="flex items-center"><span class="text-xl mr-3">📱</span> <b>Mobile:</b>&nbsp; Swipe L/R to dodge. Tap to jump.</div>
+            <h1 class="text-5xl font-black mb-2 tracking-widest text-gradient bg-gradient-to-r from-green-300 via-emerald-400 to-teal-500">PRIMAL RUN</h1>
+            <p class="text-gray-300 mb-8 text-lg font-light tracking-wide">Cinematic 3D Experience</p>
+            <div class="text-sm text-gray-300 mb-8 space-y-4 bg-black bg-opacity-30 p-6 rounded-2xl text-left border border-white border-opacity-5">
+                <div class="flex items-center"><span class="text-2xl mr-4">⌨️</span> <div><b>PC:</b> A/D to Dodge. Space to Jump.</div></div>
+                <div class="flex items-center"><span class="text-2xl mr-4">📱</span> <div><b>Mobile:</b> Swipe L/R. Tap to Jump.</div></div>
             </div>
-            
-            <button id="start-btn" class="btn-cinematic text-white px-8 py-4 rounded-xl font-bold text-xl shadow-lg w-full pointer-events-auto uppercase tracking-widest">
-                Initiate Run
+            <button id="start-btn" class="btn-cinematic text-white px-8 py-4 rounded-xl font-bold text-xl w-full pointer-events-auto uppercase tracking-widest">
+                Enter Forest
             </button>
         </div>
 
-        <!-- Game Over Screen -->
-        <div id="game-over-screen" class="glass-panel hidden border-red-900 border">
-            <h1 class="text-5xl font-black text-red-600 mb-2 tracking-widest">PREY</h1>
-            <p class="text-gray-300 mb-6 text-lg">The apex predator caught you.</p>
-            <div class="bg-black bg-opacity-50 rounded-xl p-4 mb-8 border border-red-500 border-opacity-30">
-                <p class="text-gray-400 text-sm uppercase tracking-widest mb-1">Final Distance</p>
-                <p class="font-black text-5xl text-green-400"><span id="final-score">0</span>m</p>
+        <!-- Game Over -->
+        <div id="game-over-screen" class="glass-panel hidden" style="border-color: rgba(220,38,38,0.3);">
+            <h1 class="text-6xl font-black text-red-500 mb-2 tracking-widest" style="text-shadow: 0 0 20px rgba(220,38,38,0.5);">DEVOURED</h1>
+            <p class="text-gray-400 mb-8 text-lg">You didn't run fast enough.</p>
+            <div class="bg-black bg-opacity-40 rounded-2xl p-6 mb-8 border border-red-500 border-opacity-20">
+                <p class="text-gray-500 text-sm uppercase tracking-widest mb-2">Distance Survived</p>
+                <p class="font-black text-6xl text-gradient bg-gradient-to-br from-green-400 to-green-600"><span id="final-score">0</span>m</p>
             </div>
-            <button id="restart-btn" class="btn-danger text-white px-8 py-4 rounded-xl font-bold text-xl shadow-lg w-full pointer-events-auto uppercase tracking-widest">
-                Try Again
+            <button id="restart-btn" class="btn-cinematic !from-red-700 !to-red-900 hover:!from-red-600 hover:!to-red-800 text-white px-8 py-4 rounded-xl font-bold text-xl w-full pointer-events-auto uppercase tracking-widest">
+                Resurrect
             </button>
         </div>
     </div>
 
-    <!-- Three.js Canvas Container -->
     <div id="canvas-container"></div>
 
-    <script>
-        // --- THREE.JS SETUP (CINEMATIC FOREST) ---
-        const scene = new THREE.Scene();
-        const fogColor = new THREE.Color(0x354a38); // Deep forest mist
-        scene.background = fogColor;
-        scene.fog = new THREE.FogExp2(fogColor, 0.035); 
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+        import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
-        const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 100);
-        camera.position.set(0, 3.5, 6.5);
+        // ==========================================
+        // 1. SCENE, CAMERA, RENDERER
+        // ==========================================
+        const scene = new THREE.Scene();
+        const fogColor = new THREE.Color(0x13211a);
+        scene.background = fogColor;
+        scene.fog = new THREE.FogExp2(fogColor, 0.035);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 150);
+        camera.position.set(0, 3.5, 7.5);
         camera.lookAt(0, 1.5, -10);
 
         const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        renderer.outputEncoding = THREE.sRGBEncoding;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.0;
+        renderer.toneMappingExposure = 1.1;
         document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-        // --- LIGHTING ---
-        // Canopy light (greenish top, dark soil bottom)
-        const hemiLight = new THREE.HemisphereLight(0x88bb88, 0x112211, 0.6);
+        // ==========================================
+        // 2. POST-PROCESSING (BLOOM)
+        // ==========================================
+        const renderScene = new RenderPass(scene, camera);
+        const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.2, 0.5, 0.1);
+        bloomPass.threshold = 0.25;
+        bloomPass.strength = 0.8; // Magical glow intensity
+        bloomPass.radius = 0.6;
+        
+        const outputPass = new OutputPass();
+
+        const composer = new EffectComposer(renderer);
+        composer.addPass(renderScene);
+        composer.addPass(bloomPass);
+        composer.addPass(outputPass);
+
+        // ==========================================
+        // 3. LIGHTING (CINEMATIC)
+        // ==========================================
+        const hemiLight = new THREE.HemisphereLight(0x739c7e, 0x0a120e, 0.8);
         scene.add(hemiLight);
 
-        // Sun filtering through trees
-        const dirLight = new THREE.DirectionalLight(0xfff5e6, 1.2);
-        dirLight.position.set(15, 30, 10);
+        const dirLight = new THREE.DirectionalLight(0xfff0dd, 2.5); // Strong sun shafts
+        dirLight.position.set(20, 40, 15);
         dirLight.castShadow = true;
         dirLight.shadow.mapSize.width = 2048;
         dirLight.shadow.mapSize.height = 2048;
-        dirLight.shadow.camera.left = -25;
-        dirLight.shadow.camera.right = 25;
-        dirLight.shadow.camera.top = 25;
-        dirLight.shadow.camera.bottom = -25;
         dirLight.shadow.camera.near = 0.5;
-        dirLight.shadow.camera.far = 70;
+        dirLight.shadow.camera.far = 100;
+        const d = 30;
+        dirLight.shadow.camera.left = -d; dirLight.shadow.camera.right = d;
+        dirLight.shadow.camera.top = d; dirLight.shadow.camera.bottom = -d;
         dirLight.shadow.bias = -0.0005;
         scene.add(dirLight);
 
-        // --- ENVIRONMENT ---
-        // Forest Ground
-        const groundGeo = new THREE.PlaneGeometry(120, 400, 10, 10);
+        // ==========================================
+        // 4. ENVIRONMENT
+        // ==========================================
+        const groundMat = new THREE.MeshPhysicalMaterial({ 
+            color: 0x1d2e21, roughness: 0.9, metalness: 0.05,
+            clearcoat: 0.1, clearcoatRoughness: 0.8 // Wet moss look
+        });
+        const groundGeo = new THREE.PlaneGeometry(150, 400, 20, 20);
         const posAttr = groundGeo.attributes.position;
         for (let i = 0; i < posAttr.count; i++) {
-            if (posAttr.getZ(i) !== 0) { 
-                posAttr.setZ(i, (Math.random() - 0.5) * 0.6); // Slightly bumpier ground
-            }
+            if (posAttr.getZ(i) !== 0) posAttr.setZ(i, (Math.random() - 0.5) * 0.8);
         }
         groundGeo.computeVertexNormals();
-
-        const groundMat = new THREE.MeshStandardMaterial({ 
-            color: 0x243b1e, // Dark mossy green
-            roughness: 0.95, 
-            metalness: 0.02,
-            flatShading: true
-        });
         const ground = new THREE.Mesh(groundGeo, groundMat);
         ground.rotation.x = -Math.PI / 2;
         ground.receiveShadow = true;
         scene.add(ground);
 
-        // Fireflies / Floating Spores Particle System
-        const fireflyCount = 1500;
-        const fireflyGeo = new THREE.BufferGeometry();
-        const fireflyPos = new Float32Array(fireflyCount * 3);
-        const fireflyPhase = new Float32Array(fireflyCount); // For individual swaying
-
-        for(let i=0; i < fireflyCount; i++) {
-            fireflyPos[i*3] = (Math.random() - 0.5) * 40;     // X
-            fireflyPos[i*3+1] = Math.random() * 10;           // Y
-            fireflyPos[i*3+2] = (Math.random() - 0.5) * 80;   // Z
-            fireflyPhase[i] = Math.random() * Math.PI * 2;
+        // Glowing Particles (Spores/Fireflies)
+        const pCount = 2000;
+        const pGeo = new THREE.BufferGeometry();
+        const pPos = new Float32Array(pCount * 3);
+        const pPhase = new Float32Array(pCount);
+        for(let i=0; i < pCount; i++) {
+            pPos[i*3] = (Math.random() - 0.5) * 60;
+            pPos[i*3+1] = Math.random() * 15;
+            pPos[i*3+2] = (Math.random() - 0.5) * 100 - 20;
+            pPhase[i] = Math.random() * Math.PI * 2;
         }
-        fireflyGeo.setAttribute('position', new THREE.BufferAttribute(fireflyPos, 3));
-        fireflyGeo.setAttribute('phase', new THREE.BufferAttribute(fireflyPhase, 1));
-        
-        const fireflyMat = new THREE.PointsMaterial({
-            color: 0xaaff00, // Glowing green/yellow
-            size: 0.15,
-            transparent: true,
-            opacity: 0.8,
-            blending: THREE.AdditiveBlending
+        pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+        pGeo.setAttribute('phase', new THREE.BufferAttribute(pPhase, 1));
+        const pMat = new THREE.PointsMaterial({
+            color: 0xccff00, size: 0.15, transparent: true, opacity: 0.9,
+            blending: THREE.AdditiveBlending, depthWrite: false
         });
-        const fireflySystem = new THREE.Points(fireflyGeo, fireflyMat);
-        scene.add(fireflySystem);
+        const particleSystem = new THREE.Points(pGeo, pMat);
+        scene.add(particleSystem);
 
-        // --- MODELS ---
+        // ==========================================
+        // 5. EXTERNAL MODEL LOADER (PLACEHOLDER)
+        // ==========================================
+        const gltfLoader = new GLTFLoader();
+        
+        /**
+         * Use this function to load real .glb files in the future!
+         * Example usage inside createPlayer(): 
+         * loadRealModel('models/caveman.glb', playerGroup, 1.0, new THREE.Vector3(0,0,0));
+         */
+        function loadRealModel(url, targetGroup, scale = 1, offset = new THREE.Vector3(0,0,0)) {
+            gltfLoader.load(url, (gltf) => {
+                const model = gltf.scene;
+                model.scale.setScalar(scale);
+                model.position.copy(offset);
+                model.traverse((child) => {
+                    if (child.isMesh) {
+                        child.castShadow = true;
+                        child.receiveShadow = true;
+                    }
+                });
+                // Clear procedural fallback and add real model
+                while(targetGroup.children.length > 0) targetGroup.remove(targetGroup.children[0]);
+                targetGroup.add(model);
+            }, undefined, (error) => {
+                console.warn("Could not load real model, using procedural fallback.", error);
+            });
+        }
 
-        // 1. Procedural Caveman (Smooth & Organic)
+        // ==========================================
+        // 6. PROCEDURAL MODELS (HIGH-RES FALLBACK)
+        // ==========================================
+        
+        // --- Player (Caveman) ---
         const player = new THREE.Group();
-        player.position.set(0, 0, 0); 
-        
-        // Removed flatShading for smooth look
-        const skinMat = new THREE.MeshStandardMaterial({ color: 0xe5ac85, roughness: 0.6 });
-        const hairMat = new THREE.MeshStandardMaterial({ color: 0x221100, roughness: 0.9 });
-        const clothMat = new THREE.MeshStandardMaterial({ color: 0x5c3a21, roughness: 0.9 });
-        
-        // Smooth Head
-        const headGeo = new THREE.SphereGeometry(0.25, 32, 32);
-        const head = new THREE.Mesh(headGeo, skinMat);
-        head.position.y = 1.3;
-        head.castShadow = true;
-        player.add(head);
-        
-        // Smooth Hair
-        const hairGeo = new THREE.SphereGeometry(0.27, 32, 32);
-        const hair = new THREE.Mesh(hairGeo, hairMat);
-        hair.position.y = 1.45;
-        hair.scale.set(1.05, 0.8, 1.05);
-        hair.castShadow = true;
-        player.add(hair);
-        
-        // Smooth Body (Scaled Sphere to make an oval shape)
-        const bodyGeo = new THREE.SphereGeometry(0.28, 32, 32);
-        const body = new THREE.Mesh(bodyGeo, skinMat);
-        body.scale.set(1, 1.5, 0.8);
-        body.position.y = 0.85;
-        body.castShadow = true;
-        player.add(body);
-        
-        // Smooth Cloth
-        const clothGeo = new THREE.CylinderGeometry(0.32, 0.35, 0.45, 32);
-        const cloth = new THREE.Mesh(clothGeo, clothMat);
-        cloth.position.y = 0.65;
-        cloth.castShadow = true;
-        player.add(cloth);
-        
-        // Smooth Legs
-        const legGeo = new THREE.CylinderGeometry(0.08, 0.06, 0.45, 32);
-        const leftLeg = new THREE.Mesh(legGeo, skinMat);
-        leftLeg.position.set(-0.15, 0.225, 0);
-        leftLeg.castShadow = true;
-        player.add(leftLeg);
-        
-        const rightLeg = new THREE.Mesh(legGeo, skinMat);
-        rightLeg.position.set(0.15, 0.225, 0);
-        rightLeg.castShadow = true;
-        player.add(rightLeg);
-        
+        player.position.set(0, 0, 0);
         scene.add(player);
 
-        // 2. Procedural T-Rex (Smooth & Watercolor Style)
+        const skinMat = new THREE.MeshPhysicalMaterial({ color: 0xde9b71, roughness: 0.4, metalness: 0.1, clearcoat: 0.2 });
+        const clothMat = new THREE.MeshPhysicalMaterial({ color: 0x4a2e1b, roughness: 0.9, metalness: 0 });
+        
+        const pHead = new THREE.Mesh(new THREE.SphereGeometry(0.25, 32, 32), skinMat); pHead.position.y = 1.3; pHead.castShadow = true;
+        const pBody = new THREE.Mesh(new THREE.SphereGeometry(0.28, 32, 32), skinMat); pBody.scale.set(1, 1.5, 0.8); pBody.position.y = 0.85; pBody.castShadow = true;
+        const pCloth = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.35, 0.45, 32), clothMat); pCloth.position.y = 0.65; pCloth.castShadow = true;
+        
+        const legGeo = new THREE.CylinderGeometry(0.08, 0.06, 0.5, 32);
+        const pLegL = new THREE.Mesh(legGeo, skinMat); pLegL.position.set(-0.15, 0.25, 0); pLegL.castShadow = true;
+        const pLegR = new THREE.Mesh(legGeo, skinMat); pLegR.position.set(0.15, 0.25, 0); pLegR.castShadow = true;
+        
+        player.add(pHead, pBody, pCloth, pLegL, pLegR);
+        // Note: To use a real model, uncomment below and provide valid URL
+        // loadRealModel('path/to/caveman.glb', player, 1.0);
+
+        // --- T-Rex ---
         const dino = new THREE.Group();
-        dino.position.set(0, 0, 12); 
-        
-        const trexGreen = new THREE.MeshStandardMaterial({ 
-            color: 0x5c7a65, // Watercolor green
-            roughness: 0.6
-        }); 
-        const trexBelly = new THREE.MeshStandardMaterial({ 
-            color: 0xdaccb0, // Cream/yellowish underbelly
-            roughness: 0.7
-        });
-        const toothMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 });
-        
-        // Smooth Body (Scaled Sphere)
-        const trexBodyGeo = new THREE.SphereGeometry(1.6, 32, 32);
-        const trexBody = new THREE.Mesh(trexBodyGeo, trexGreen);
-        trexBody.scale.set(0.9, 1.2, 1.8);
-        trexBody.position.y = 3.2;
-        trexBody.rotation.x = Math.PI / 12;
-        trexBody.castShadow = true;
-        
-        // Smooth Belly patch (Scaled Sphere slightly protruding)
-        const bellyGeo = new THREE.SphereGeometry(1.5, 32, 32);
-        const belly = new THREE.Mesh(bellyGeo, trexBelly);
-        belly.scale.set(0.85, 1.15, 1.7);
-        belly.position.set(0, -0.1, 0.2);
-        trexBody.add(belly);
-        dino.add(trexBody);
-        
-        // Head Group
-        const trexHeadGroup = new THREE.Group();
-        trexHeadGroup.position.set(0, 4.2, -2.5);
-        
-        // Smooth Upper Jaw/Skull
-        const skullGeo = new THREE.SphereGeometry(1.0, 32, 32);
-        const trexSkull = new THREE.Mesh(skullGeo, trexGreen);
-        trexSkull.scale.set(1.0, 0.8, 1.6);
-        trexSkull.castShadow = true;
-        trexHeadGroup.add(trexSkull);
-        
-        // Smooth Lower Jaw
-        const jawGeo = new THREE.SphereGeometry(0.9, 32, 32);
-        const trexJaw = new THREE.Mesh(jawGeo, trexBelly);
-        trexJaw.scale.set(0.9, 0.4, 1.5);
-        trexJaw.position.set(0, -0.6, 0.2);
-        trexJaw.rotation.x = Math.PI / 6; // Open mouth
-        trexJaw.castShadow = true;
-        trexHeadGroup.add(trexJaw);
-
-        // Teeth (Smooth Cones)
-        const toothGeo = new THREE.ConeGeometry(0.06, 0.3, 16);
-        for(let i=0; i<6; i++) {
-            let toothL = new THREE.Mesh(toothGeo, toothMat);
-            toothL.position.set(-0.7, -0.6, -1.2 + i*0.4);
-            toothL.rotation.x = Math.PI; 
-            trexSkull.add(toothL);
-            let toothR = new THREE.Mesh(toothGeo, toothMat);
-            toothR.position.set(0.7, -0.6, -1.2 + i*0.4);
-            toothR.rotation.x = Math.PI;
-            trexSkull.add(toothR);
-        }
-        for(let i=0; i<5; i++) {
-            let toothL = new THREE.Mesh(toothGeo, toothMat);
-            toothL.position.set(-0.6, 0.2, -1.0 + i*0.4);
-            trexJaw.add(toothL);
-            let toothR = new THREE.Mesh(toothGeo, toothMat);
-            toothR.position.set(0.6, 0.2, -1.0 + i*0.4);
-            trexJaw.add(toothR);
-        }
-
-        // Eyes (Smooth Spheres)
-        const eyeGeo = new THREE.SphereGeometry(0.18, 32, 32);
-        const eyeMat = new THREE.MeshStandardMaterial({ color: 0xffcc00, emissive: 0x554400, roughness: 0.1 });
-        const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
-        leftEye.position.set(-0.7, 0.4, -0.8);
-        trexHeadGroup.add(leftEye);
-        const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
-        rightEye.position.set(0.7, 0.4, -0.8);
-        trexHeadGroup.add(rightEye);
-        
-        dino.add(trexHeadGroup);
-        
-        // Smooth Tail (Cone with high segments)
-        const tailGeo = new THREE.ConeGeometry(1.2, 5.0, 32);
-        const tail = new THREE.Mesh(tailGeo, trexGreen);
-        tail.position.set(0, 2.5, 4.0);
-        tail.rotation.x = -Math.PI / 2.5;
-        tail.castShadow = true;
-        
-        const tailBellyGeo = new THREE.ConeGeometry(1.1, 4.8, 32);
-        const tailBelly = new THREE.Mesh(tailBellyGeo, trexBelly);
-        tailBelly.position.set(0, 0, 0.1);
-        tail.add(tailBelly);
-        dino.add(tail);
-
-        // Back Spikes (Smooth Cones)
-        const spikeGeo = new THREE.ConeGeometry(0.15, 0.6, 16);
-        for(let i=0; i<5; i++) {
-            let spike = new THREE.Mesh(spikeGeo, trexGreen);
-            spike.position.set(0, 1.4, -1.5 + i*0.8);
-            trexBody.add(spike);
-        }
-        for(let i=0; i<4; i++) {
-            let spike = new THREE.Mesh(spikeGeo, trexGreen);
-            spike.position.set(0, 1.2, i*1.0 - 1.0);
-            spike.rotation.x = Math.PI / 2;
-            tail.add(spike);
-        }
-        
-        // Smooth Legs & Arms
-        const dinoLegGeo = new THREE.CylinderGeometry(0.6, 0.3, 2.2, 32);
-        const dLeftLeg = new THREE.Mesh(dinoLegGeo, trexGreen);
-        dLeftLeg.position.set(-1.2, 1.1, 1.5);
-        dLeftLeg.castShadow = true;
-        dino.add(dLeftLeg);
-        
-        const dRightLeg = new THREE.Mesh(dinoLegGeo, trexGreen);
-        dRightLeg.position.set(1.2, 1.1, 1.5);
-        dRightLeg.castShadow = true;
-        dino.add(dRightLeg);
-
-        const armGeo = new THREE.CylinderGeometry(0.12, 0.08, 0.8, 32);
-        const leftArm = new THREE.Mesh(armGeo, trexGreen);
-        leftArm.position.set(-1.0, 2.5, -1.2);
-        leftArm.rotation.x = Math.PI / 3;
-        dino.add(leftArm);
-        
-        const rightArm = new THREE.Mesh(armGeo, trexGreen);
-        rightArm.position.set(1.0, 2.5, -1.2);
-        rightArm.rotation.x = Math.PI / 3;
-        dino.add(rightArm);
-        
+        dino.position.set(0, 0, 15);
         scene.add(dino);
 
-        // --- GAME STATE ---
+        const tGreenMat = new THREE.MeshPhysicalMaterial({ color: 0x476b53, roughness: 0.7, metalness: 0.2, clearcoat: 0.1 });
+        const tBellyMat = new THREE.MeshPhysicalMaterial({ color: 0xc4b79b, roughness: 0.8 });
+        const tToothMat = new THREE.MeshStandardMaterial({ color: 0xffffee, roughness: 0.2 });
+        const tEyeMat = new THREE.MeshStandardMaterial({ color: 0xffaa00, emissive: 0xff3300, emissiveIntensity: 2.0 }); // Glowing eyes for bloom
+
+        const tBody = new THREE.Mesh(new THREE.SphereGeometry(1.6, 64, 64), tGreenMat); tBody.scale.set(0.9, 1.2, 1.8); tBody.position.y = 3.2; tBody.rotation.x = 0.2; tBody.castShadow = true;
+        const tBelly = new THREE.Mesh(new THREE.SphereGeometry(1.5, 64, 64), tBellyMat); tBelly.scale.set(0.85, 1.15, 1.7); tBelly.position.set(0, -0.1, 0.2); tBody.add(tBelly);
+        dino.add(tBody);
+
+        const tHeadGroup = new THREE.Group(); tHeadGroup.position.set(0, 4.2, -2.5); dino.add(tHeadGroup);
+        const tSkull = new THREE.Mesh(new THREE.SphereGeometry(1.0, 32, 32), tGreenMat); tSkull.scale.set(1, 0.8, 1.6); tSkull.castShadow = true; tHeadGroup.add(tSkull);
+        const tJaw = new THREE.Mesh(new THREE.SphereGeometry(0.9, 32, 32), tBellyMat); tJaw.scale.set(0.9, 0.4, 1.5); tJaw.position.set(0, -0.7, 0.2); tJaw.rotation.x = 0.5; tJaw.castShadow = true; tHeadGroup.add(tJaw);
+
+        // Teeth & Eyes
+        const toothGeo = new THREE.ConeGeometry(0.08, 0.35, 16);
+        for(let i=0; i<6; i++) {
+            let tl = new THREE.Mesh(toothGeo, tToothMat); tl.position.set(-0.7, -0.6, -1.2 + i*0.4); tl.rotation.x = Math.PI; tSkull.add(tl);
+            let tr = new THREE.Mesh(toothGeo, tToothMat); tr.position.set(0.7, -0.6, -1.2 + i*0.4); tr.rotation.x = Math.PI; tSkull.add(tr);
+            let jl = new THREE.Mesh(toothGeo, tToothMat); jl.position.set(-0.6, 0.3, -1.0 + i*0.4); tJaw.add(jl);
+            let jr = new THREE.Mesh(toothGeo, tToothMat); jr.position.set(0.6, 0.3, -1.0 + i*0.4); tJaw.add(jr);
+        }
+        const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), tEyeMat); eyeL.position.set(-0.75, 0.3, -0.8); tHeadGroup.add(eyeL);
+        const eyeR = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 16), tEyeMat); eyeR.position.set(0.75, 0.3, -0.8); tHeadGroup.add(eyeR);
+
+        // Tail & Spikes
+        const tTail = new THREE.Mesh(new THREE.ConeGeometry(1.2, 5.5, 32), tGreenMat); tTail.position.set(0, 2.5, 4.2); tTail.rotation.x = -1.2; tTail.castShadow = true; dino.add(tTail);
+        const spikeGeo = new THREE.ConeGeometry(0.2, 0.7, 16);
+        for(let i=0; i<6; i++) { let s = new THREE.Mesh(spikeGeo, tGreenMat); s.position.set(0, 1.4, -1.5 + i*0.7); tBody.add(s); }
+        for(let i=0; i<4; i++) { let s = new THREE.Mesh(spikeGeo, tGreenMat); s.position.set(0, 1.2, i*1.2 - 1.0); s.rotation.x = 1.5; tTail.add(s); }
+
+        const dLegGeo = new THREE.CylinderGeometry(0.5, 0.3, 2.5, 32);
+        const tLegL = new THREE.Mesh(dLegGeo, tGreenMat); tLegL.position.set(-1.2, 1.25, 1.5); tLegL.castShadow = true; dino.add(tLegL);
+        const tLegR = new THREE.Mesh(dLegGeo, tGreenMat); tLegR.position.set(1.2, 1.25, 1.5); tLegR.castShadow = true; dino.add(tLegR);
+
+        // Note: To use a real T-Rex model, uncomment below and provide valid URL
+        // loadRealModel('path/to/trex.glb', dino, 2.0, new THREE.Vector3(0,0,5));
+
+        // ==========================================
+        // 7. GAME STATE & OBSTACLES
+        // ==========================================
         let isPlaying = false;
         let isGameOver = false;
         let score = 0;
-        let gameSpeed = 0.4;
-        const laneWidth = 3.0;
-        let currentLane = 0; 
+        let gameSpeed = 0.45;
+        const laneWidth = 3.5;
+        let currentLane = 0; // -1, 0, 1
         
         let yVelocity = 0;
         const gravity = -0.025;
         const jumpStrength = 0.45;
         let isJumping = false;
-
         let obstacles = [];
 
-        // UI Elements
+        // Realistic Obstacle Materials
+        const rockMat = new THREE.MeshPhysicalMaterial({ color: 0x3d4737, roughness: 1.0, bumpScale: 0.05 });
+        const barkMat = new THREE.MeshPhysicalMaterial({ color: 0x2e1c12, roughness: 1.0 });
+        const leafMat = new THREE.MeshPhysicalMaterial({ color: 0x142b17, roughness: 0.8 });
+
+        function spawnObstacle() {
+            if (!isPlaying) return;
+            const lane = Math.floor(Math.random() * 3) - 1;
+            const xPos = lane * laneWidth;
+            const isTree = Math.random() > 0.4;
+            const obsGroup = new THREE.Group();
+            let hitRadius, hitHeight;
+
+            if (isTree) {
+                const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 2, 16), barkMat);
+                trunk.position.y = 1; trunk.castShadow = true; obsGroup.add(trunk);
+                
+                const l1 = new THREE.Mesh(new THREE.ConeGeometry(1.5, 2.5, 32), leafMat); l1.position.y = 2.0; l1.castShadow = true; obsGroup.add(l1);
+                const l2 = new THREE.Mesh(new THREE.ConeGeometry(1.2, 2.2, 32), leafMat); l2.position.y = 3.2; l2.castShadow = true; obsGroup.add(l2);
+                
+                hitRadius = 0.7; hitHeight = 4.0; 
+            } else {
+                const size = 1.0 + Math.random() * 0.5;
+                const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(size, 2), rockMat); // Smoothed dodecahedron
+                rock.scale.set(1.2, 0.7, 1.0); rock.position.y = size * 0.6; rock.rotation.set(Math.random(), Math.random(), 0); rock.castShadow = true;
+                obsGroup.add(rock);
+                hitRadius = size * 1.1; hitHeight = size * 1.3;
+            }
+
+            // Note: Can replace with real obstacle models using loadRealModel here too.
+
+            obsGroup.position.set(xPos, 0, -90);
+            scene.add(obsGroup);
+            obstacles.push({ mesh: obsGroup, hitRadius, hitHeight });
+
+            const nextSpawnTime = Math.max(400, 1000 - (gameSpeed * 1000) + (Math.random() * 500)); 
+            setTimeout(spawnObstacle, nextSpawnTime);
+        }
+
+        // ==========================================
+        // 8. LOGIC & CONTROLS
+        // ==========================================
         const uiContainer = document.getElementById('ui-container');
         const startScreen = document.getElementById('start-screen');
         const gameOverScreen = document.getElementById('game-over-screen');
         const scoreHud = document.getElementById('score-hud');
         const scoreVal = document.getElementById('score-val');
-        const finalScoreVal = document.getElementById('final-score');
 
-        // --- OBSTACLE SPANWER (FOREST THEME) ---
-        // Removed flatShading to ensure rocks and trees are smoothly rendered
-        const mossyRockMat = new THREE.MeshStandardMaterial({ color: 0x4a5d23, roughness: 0.9 });
-        const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a3424, roughness: 1.0 });
-        const pineMat = new THREE.MeshStandardMaterial({ color: 0x1f3d17, roughness: 0.8 });
-
-        function spawnObstacle() {
-            if (!isPlaying) return;
-
-            const lane = Math.floor(Math.random() * 3) - 1;
-            const xPos = lane * laneWidth;
-            const isTree = Math.random() > 0.5;
-            
-            const obsGroup = new THREE.Group();
-            let hitRadius, hitHeight;
-
-            if (isTree) {
-                // Smooth Pine Tree (Cylinder Trunk + Cone Leaves)
-                const trunkGeo = new THREE.CylinderGeometry(0.2, 0.3, 1.5, 32);
-                const trunk = new THREE.Mesh(trunkGeo, trunkMat);
-                trunk.position.y = 0.75;
-                trunk.castShadow = true;
-                obsGroup.add(trunk);
-                
-                const leavesBottomGeo = new THREE.ConeGeometry(1.2, 2.0, 32);
-                const leavesBottom = new THREE.Mesh(leavesBottomGeo, pineMat);
-                leavesBottom.position.y = 1.8;
-                leavesBottom.castShadow = true;
-                obsGroup.add(leavesBottom);
-
-                const leavesTopGeo = new THREE.ConeGeometry(0.9, 1.8, 32);
-                const leavesTop = new THREE.Mesh(leavesTopGeo, pineMat);
-                leavesTop.position.y = 2.8;
-                leavesTop.castShadow = true;
-                obsGroup.add(leavesTop);
-                
-                hitRadius = 0.6; // Core collision
-                hitHeight = 3.5; // Unjumpable
-            } else {
-                // Smooth Mossy Rock (Sphere shaped like a boulder)
-                const rockSize = 0.8 + Math.random() * 0.4;
-                const rockGeo = new THREE.SphereGeometry(rockSize, 32, 32);
-                const rock = new THREE.Mesh(rockGeo, mossyRockMat);
-                
-                // Flatten and elongate to look like a natural rock
-                rock.scale.set(1.2, 0.7, 1.0);
-                rock.position.y = rockSize * 0.5;
-                rock.rotation.set(0, Math.random() * Math.PI, 0);
-                rock.castShadow = true;
-                
-                obsGroup.add(rock);
-                
-                hitRadius = rockSize * 1.0;
-                hitHeight = rockSize * 1.2;
-            }
-
-            obsGroup.position.set(xPos, 0, -80);
-            scene.add(obsGroup);
-            
-            obstacles.push({
-                mesh: obsGroup,
-                hitRadius: hitRadius,
-                hitHeight: hitHeight,
-                type: isTree ? 'tree' : 'rock'
-            });
-
-            const baseTime = 1200;
-            const speedFactor = (gameSpeed - 0.4) * 2000;
-            const nextSpawnTime = Math.max(400, baseTime - speedFactor + (Math.random() * 400)); 
-            setTimeout(spawnObstacle, nextSpawnTime);
-        }
-
-        // --- GAME LOGIC ---
         function resetGame() {
-            score = 0;
-            gameSpeed = 0.4;
-            currentLane = 0;
-            player.position.set(0, 0, 0); 
-            player.rotation.set(0,0,0);
-            
-            dino.position.set(0, 0, 12); 
-            dino.rotation.set(0,0,0);
-            
-            isJumping = false;
-            yVelocity = 0;
+            score = 0; gameSpeed = 0.45; currentLane = 0;
+            player.position.set(0, 0, 0); player.rotation.set(0,0,0);
+            dino.position.set(0, 0, 15); dino.rotation.set(0,0,0);
+            isJumping = false; yVelocity = 0;
             
             obstacles.forEach(obs => scene.remove(obs.mesh));
             obstacles = [];
             
             scoreVal.innerText = score;
-            startScreen.classList.add('hidden');
-            gameOverScreen.classList.add('hidden');
-            scoreHud.style.display = 'block';
-            uiContainer.style.pointerEvents = 'none'; 
+            startScreen.classList.add('hidden'); gameOverScreen.classList.add('hidden');
+            scoreHud.style.display = 'block'; uiContainer.style.pointerEvents = 'none'; 
             
-            isPlaying = true;
-            isGameOver = false;
-            
+            isPlaying = true; isGameOver = false;
+            camera.position.set(0, 3.5, 7.5);
             spawnObstacle();
         }
 
         function triggerGameOver() {
-            isPlaying = false;
-            isGameOver = true;
-            
+            isPlaying = false; isGameOver = true;
             let shakeTicks = 0;
+            // Cinematic Camera Shake
             let shakeInterval = setInterval(() => {
                 camera.position.x = (Math.random() - 0.5) * 1.5;
                 camera.position.y = 3.5 + (Math.random() - 0.5) * 1.5;
                 shakeTicks++;
-                if(shakeTicks > 15) {
+                if(shakeTicks > 20) {
                     clearInterval(shakeInterval);
-                    camera.position.set(0, 3.5, 6.5);
-                    
-                    finalScoreVal.innerText = Math.floor(score);
+                    camera.position.set(0, 3.5, 7.5);
+                    document.getElementById('final-score').innerText = Math.floor(score);
                     gameOverScreen.classList.remove('hidden');
-                    scoreHud.style.display = 'none';
-                    uiContainer.style.pointerEvents = 'auto'; 
+                    scoreHud.style.display = 'none'; uiContainer.style.pointerEvents = 'auto'; 
                 }
-            }, 40);
+            }, 30);
         }
 
-        // --- CONTROLS ---
-        function moveLeft() { if (currentLane > -1) currentLane--; }
-        function moveRight() { if (currentLane < 1) currentLane++; }
+        function move(dir) {
+            if(!isPlaying) return;
+            currentLane += dir;
+            if(currentLane < -1) currentLane = -1;
+            if(currentLane > 1) currentLane = 1;
+        }
         function jump() {
-            if (!isJumping) {
-                isJumping = true;
-                yVelocity = jumpStrength;
-            }
+            if(!isPlaying || isJumping) return;
+            isJumping = true; yVelocity = jumpStrength;
         }
 
         window.addEventListener('keydown', (e) => {
-            if (!isPlaying) return;
-            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') moveLeft();
-            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') moveRight();
-            if (e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') jump();
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') move(-1);
+            if (e.code === 'ArrowRight' || e.code === 'KeyD') move(1);
+            if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') jump();
         });
 
-        let touchStartX = 0, touchStartY = 0, touchTime = 0;
-        window.addEventListener('touchstart', (e) => {
-            if (!isPlaying) return;
-            touchStartX = e.changedTouches[0].screenX;
-            touchStartY = e.changedTouches[0].screenY;
-            touchTime = Date.now();
-        }, {passive: false});
-
+        let tX = 0, tY = 0;
+        window.addEventListener('touchstart', (e) => { tX = e.touches[0].screenX; tY = e.touches[0].screenY; }, {passive: false});
         window.addEventListener('touchend', (e) => {
-            if (!isPlaying) return;
-            let dx = e.changedTouches[0].screenX - touchStartX;
-            let dy = e.changedTouches[0].screenY - touchStartY;
-            let timeDiff = Date.now() - touchTime;
-
-            if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 30) {
-                if (dx > 0) moveRight(); else moveLeft();
-            } else if (Math.abs(dx) < 30 && Math.abs(dy) < 30 && timeDiff < 300) {
-                jump();
-            } else if (dy < -30) {
-                jump();
-            }
+            let dx = e.changedTouches[0].screenX - tX;
+            let dy = e.changedTouches[0].screenY - tY;
+            if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 30) move(dx > 0 ? 1 : -1);
+            else if (dy < -30 || (Math.abs(dx) < 10 && Math.abs(dy) < 10)) jump();
         });
 
         document.getElementById('start-btn').addEventListener('click', resetGame);
         document.getElementById('restart-btn').addEventListener('click', resetGame);
 
         window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
+            camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        // --- MAIN RENDER LOOP ---
+        // ==========================================
+        // 9. ANIMATION LOOP
+        // ==========================================
+        const clock = new THREE.Clock();
+
         function animate() {
             requestAnimationFrame(animate);
             const time = Date.now();
+            const delta = clock.getDelta();
 
-            // Animate Fireflies / Spores
-            const positions = fireflySystem.geometry.attributes.position.array;
-            const phases = fireflySystem.geometry.attributes.phase.array;
-            
-            for(let i=0; i<fireflyCount; i++) {
-                let pIndex = i * 3;
-                
-                // Slow drift towards camera
-                positions[pIndex + 2] += (isPlaying ? gameSpeed * 1.2 : 0.05);
-                
-                // Gentle floating up and swaying
-                positions[pIndex + 1] += Math.sin(time * 0.002 + phases[i]) * 0.01;
-                positions[pIndex] += Math.cos(time * 0.001 + phases[i]) * 0.01;
-                
-                // Reset if behind camera
-                if(positions[pIndex + 2] > 15) {
-                    positions[pIndex + 2] = -80; 
-                    positions[pIndex] = (Math.random() - 0.5) * 40; 
-                    positions[pIndex + 1] = Math.random() * 10;
-                }
+            // Particles Animation
+            const pos = particleSystem.geometry.attributes.position.array;
+            const phase = particleSystem.geometry.attributes.phase.array;
+            for(let i=0; i<pCount; i++) {
+                let idx = i*3;
+                pos[idx+2] += (isPlaying ? gameSpeed * 1.5 : 0.05); // Move forward
+                pos[idx+1] += Math.sin(time*0.002 + phase[i])*0.01; // Float Y
+                pos[idx] += Math.cos(time*0.001 + phase[i])*0.01;   // Float X
+                if(pos[idx+2] > 20) { pos[idx+2] = -90; pos[idx] = (Math.random()-0.5)*60; pos[idx+1] = Math.random()*15; }
             }
-            fireflySystem.geometry.attributes.position.needsUpdate = true;
+            particleSystem.geometry.attributes.position.needsUpdate = true;
 
             if (isPlaying) {
                 score += gameSpeed * 0.2;
                 scoreVal.innerText = Math.floor(score);
-                if (gameSpeed < 1.2) gameSpeed += 0.0001;
+                if (gameSpeed < 1.0) gameSpeed += 0.00005;
 
-                // Player Lerp Movement
-                const targetX = currentLane * laneWidth;
-                player.position.x += (targetX - player.position.x) * 0.15;
+                // Player Movement (Lerp for smooth transition)
+                player.position.x += (currentLane * laneWidth - player.position.x) * 0.15;
 
-                // Jump Physics
+                // Jumping
                 if (isJumping) {
-                    player.position.y += yVelocity;
-                    yVelocity += gravity;
-                    player.rotation.x -= 0.12; 
-
+                    player.position.y += yVelocity; yVelocity += gravity;
+                    player.rotation.x -= 0.15; // Front flip
                     if (player.position.y <= 0) {
-                        player.position.y = 0;
-                        isJumping = false;
-                        yVelocity = 0;
-                        player.rotation.x = 0;
+                        player.position.y = 0; isJumping = false; yVelocity = 0; player.rotation.x = 0;
                     }
                 }
 
-                // Obstacles Logic
+                // Obstacles & Collision
                 for (let i = obstacles.length - 1; i >= 0; i--) {
                     let obs = obstacles[i];
                     obs.mesh.position.z += gameSpeed;
-
-                    let pPos = player.position;
-                    let oPos = obs.mesh.position;
                     
-                    let distZ = Math.abs(pPos.z - oPos.z);
-                    let distX = Math.abs(pPos.x - oPos.x);
+                    let dz = Math.abs(player.position.z - obs.mesh.position.z);
+                    let dx = Math.abs(player.position.x - obs.mesh.position.x);
                     
-                    if (distZ < 1.2 && distX < obs.hitRadius) {
-                        if (pPos.y > obs.hitHeight - 0.2) {
-                            // Cleared!
-                        } else {
-                            triggerGameOver();
-                        }
+                    // Basic Bounding Sphere-ish Collision
+                    if (dz < 1.2 && dx < obs.hitRadius) {
+                        if (player.position.y < obs.hitHeight - 0.2) triggerGameOver();
                     }
-
-                    if (oPos.z > 15) {
-                        scene.remove(obs.mesh);
-                        obstacles.splice(i, 1);
-                    }
+                    if (obs.mesh.position.z > 15) { scene.remove(obs.mesh); obstacles.splice(i, 1); }
                 }
-                
-                // Dynamic Dino Animation
-                dino.position.x += (player.position.x - dino.position.x) * 0.05; 
-                dino.position.y = Math.sin(time * 0.015) * 0.4; 
-                dino.rotation.z = Math.sin(time * 0.01) * 0.05; 
-                dino.rotation.x = Math.sin(time * 0.02) * 0.05; 
-                
-                // Caveman Leg Animation
-                const runCycle = Math.sin(time * 0.02);
+
+                // Procedural Animations
+                const runCycle = Math.sin(time * 0.025);
                 if (!isJumping) {
-                    player.children[4].position.y = 0.225 + Math.max(0, runCycle * 0.15); 
-                    player.children[5].position.y = 0.225 + Math.max(0, -runCycle * 0.15); 
+                    pLegL.position.y = 0.25 + Math.max(0, runCycle * 0.2);
+                    pLegR.position.y = 0.25 + Math.max(0, -runCycle * 0.2);
                 }
                 
+                // T-Rex running behind
+                dino.position.x += (player.position.x - dino.position.x) * 0.04;
+                dino.position.y = Math.sin(time * 0.015) * 0.5;
+                dino.rotation.z = Math.sin(time * 0.01) * 0.03;
+                tLegL.position.y = 1.25 + Math.max(0, runCycle * 0.4);
+                tLegR.position.y = 1.25 + Math.max(0, -runCycle * 0.4);
+                tHeadGroup.rotation.y = Math.sin(time * 0.005) * 0.2;
+
             } else if (isGameOver) {
-                if (dino.position.z > player.position.z + 1.0) {
-                    dino.position.z -= 0.6;
+                // T-Rex catches up animation
+                if (dino.position.z > player.position.z + 1.5) {
+                    dino.position.z -= 0.8;
                     dino.position.y -= 0.1;
-                    dino.rotation.x -= 0.02; 
+                    dino.rotation.x -= 0.02;
+                    tJaw.rotation.x = 1.0; // Open mouth wider
                 }
             } else {
-                camera.position.x = Math.sin(time * 0.0005) * 1.5;
+                // Idle Camera Pan
+                camera.position.x = Math.sin(time * 0.0003) * 2;
                 camera.lookAt(0, 1.5, -10);
             }
 
-            renderer.render(scene, camera);
+            // Render via composer for Bloom effect
+            composer.render();
         }
 
+        // Wait for fonts/styles to load before starting animation loop to prevent stutter
         window.onload = () => animate();
 
     </script>
